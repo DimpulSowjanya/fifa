@@ -1,6 +1,28 @@
 import { Zone, Edge, StadiumGraph } from '../services/StadiumGraph.js';
 import * as admin from 'firebase-admin';
 
+// Safely initialize Firebase Admin if service account JSON configuration is present
+if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+  try {
+    const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+    if (!admin.apps.length) {
+      admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount)
+      });
+      console.log('[Firebase Admin] Initialized successfully via service account JSON.');
+    }
+  } catch (error) {
+    console.error('[Firebase Admin] Failed parsing process.env.FIREBASE_SERVICE_ACCOUNT. Running default initialization:', error);
+    if (!admin.apps.length) {
+      admin.initializeApp();
+    }
+  }
+} else {
+  if (!admin.apps.length) {
+    admin.initializeApp();
+  }
+}
+
 export interface Amenity {
   id: string;
   zoneId: string;
@@ -125,23 +147,45 @@ export class InMemoryRepository implements DatabaseRepository {
 
 /**
  * Real Firestore repository for Spark Plan (free-tier).
+ * Incorporates a layout data cache with configurable TTL to improve performance and cost.
  */
 export class FirestoreRepository implements DatabaseRepository {
   private db: admin.firestore.Firestore;
   private stadiumId: string = 'world_cup_stadium_2026';
+
+  // Cache configuration
+  private cachedZones: Zone[] | null = null;
+  private cachedEdges: Edge[] | null = null;
+  private cachedAmenities: Amenity[] | null = null;
+
+  private zonesCacheExpiry: number = 0;
+  private edgesCacheExpiry: number = 0;
+  private amenitiesCacheExpiry: number = 0;
+
+  // TTL settings in milliseconds
+  private readonly ZONES_TTL = 10 * 1000; // 10 seconds for zones (incorporating dynamic occupancies)
+  private readonly STATIC_TTL = 10 * 60 * 1000; // 10 minutes for static layouts (edges, amenities)
 
   constructor() {
     this.db = admin.firestore();
   }
 
   public async getZones(): Promise<Zone[]> {
+    const now = Date.now();
+    if (this.cachedZones && now < this.zonesCacheExpiry) {
+      return this.cachedZones;
+    }
+
     const snapshot = await this.db
       .collection('stadiums')
       .doc(this.stadiumId)
       .collection('zones')
       .get();
     
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Zone));
+    const zones = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Zone));
+    this.cachedZones = zones;
+    this.zonesCacheExpiry = now + this.ZONES_TTL;
+    return zones;
   }
 
   public async updateZoneStatus(zoneId: string, status: 'open' | 'closed'): Promise<boolean> {
@@ -151,6 +195,10 @@ export class FirestoreRepository implements DatabaseRepository {
       .collection('zones')
       .doc(zoneId)
       .update({ status });
+    
+    // Invalidate zones cache
+    this.cachedZones = null;
+    this.zonesCacheExpiry = 0;
     return true;
   }
 
@@ -161,27 +209,47 @@ export class FirestoreRepository implements DatabaseRepository {
       .collection('zones')
       .doc(zoneId)
       .update({ currentOccupancy: occupancy });
+    
+    // Invalidate zones cache
+    this.cachedZones = null;
+    this.zonesCacheExpiry = 0;
     return true;
   }
 
   public async getEdges(): Promise<Edge[]> {
+    const now = Date.now();
+    if (this.cachedEdges && now < this.edgesCacheExpiry) {
+      return this.cachedEdges;
+    }
+
     const snapshot = await this.db
       .collection('stadiums')
       .doc(this.stadiumId)
       .collection('edges')
       .get();
 
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Edge));
+    const edges = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Edge));
+    this.cachedEdges = edges;
+    this.edgesCacheExpiry = now + this.STATIC_TTL;
+    return edges;
   }
 
   public async getAmenities(): Promise<Amenity[]> {
+    const now = Date.now();
+    if (this.cachedAmenities && now < this.amenitiesCacheExpiry) {
+      return this.cachedAmenities;
+    }
+
     const snapshot = await this.db
       .collection('stadiums')
       .doc(this.stadiumId)
       .collection('amenities')
       .get();
 
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Amenity));
+    const amenities = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Amenity));
+    this.cachedAmenities = amenities;
+    this.amenitiesCacheExpiry = now + this.STATIC_TTL;
+    return amenities;
   }
 
   public async logQuery(log: Omit<QueryLog, 'id'>): Promise<QueryLog> {

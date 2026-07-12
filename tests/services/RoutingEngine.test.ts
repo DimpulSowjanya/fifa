@@ -52,4 +52,33 @@ describe('Deterministic Engine Upgrade Tests', () => {
     expect(alternateRoute).not.toBeNull();
     expect(alternateRoute!.path.join(',')).not.toBe(primaryRoute!.path.join(','));
   });
+
+  test('Should find nearest amenity successfully', () => {
+    const route = routingEngine.findNearestAmenity('gate_1', 'restroom', 'standard');
+    expect(route).not.toBeNull();
+    expect(route!.path[route!.path.length - 1]).toContain('restroom');
+  });
+
+  test('Should restrict to accessible-only nearest amenity when requested', () => {
+    const route = routingEngine.findNearestAmenity('gate_1', 'restroom', 'step_free');
+    expect(route).not.toBeNull();
+    // The closest restroom is amenity_restroom_1, but it is not stepFree/accessible.
+    // The nearest accessible restroom is amenity_restroom_acc_1.
+    expect(route!.path[route!.path.length - 1]).toBe('amenity_restroom_acc_1');
+  });
+
+  test('Should return endpoint warnings when a zone is closed', () => {
+    graph.updateZoneStatus('block_a2', 'closed');
+    const route = routingEngine.findRoute('gate_1', 'block_a2', 'standard');
+    expect(route).not.toBeNull();
+    expect(route!.path).toHaveLength(0);
+    expect(route!.warnings[0]).toContain('CLOSED');
+  });
+
+  test('Should warn on high crowd occupancy along route paths', () => {
+    graph.updateZoneOccupancy('concourse_n', 24000); // 96% occupancy
+    const route = routingEngine.findRoute('gate_1', 'block_a2', 'standard');
+    expect(route).not.toBeNull();
+    expect(route!.warnings.some(w => w.includes('heavy congestion') || w.includes('High density'))).toBe(true);
+  });
 });

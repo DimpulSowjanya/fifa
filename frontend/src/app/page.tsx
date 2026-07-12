@@ -380,15 +380,16 @@ export default function Home() {
             {/* Font Control */}
             <div className="flex items-center gap-1 bg-slate-800 px-2 py-1 rounded-lg border border-slate-700">
               <span className="text-[10px] uppercase font-bold text-slate-400 px-1">Font:</span>
-              <button onClick={() => setFontSizeClass('text-sm')} className={`px-2 py-0.5 text-xs rounded ${fontSizeClass === 'text-sm' ? 'bg-emerald-500 text-slate-950 font-bold' : 'text-slate-300 hover:bg-slate-700'}`}>A-</button>
-              <button onClick={() => setFontSizeClass('text-base')} className={`px-2 py-0.5 text-xs rounded ${fontSizeClass === 'text-base' ? 'bg-emerald-500 text-slate-950 font-bold' : 'text-slate-300 hover:bg-slate-700'}`}>A</button>
-              <button onClick={() => setFontSizeClass('text-lg')} className={`px-2 py-0.5 text-xs rounded ${fontSizeClass === 'text-lg' ? 'bg-emerald-500 text-slate-950 font-bold' : 'text-slate-300 hover:bg-slate-700'}`}>A+</button>
+              <button onClick={() => setFontSizeClass('text-sm')} aria-label="Small Font Size" className={`px-2 py-0.5 text-xs rounded ${fontSizeClass === 'text-sm' ? 'bg-emerald-500 text-slate-950 font-bold' : 'text-slate-300 hover:bg-slate-700'}`}>A-</button>
+              <button onClick={() => setFontSizeClass('text-base')} aria-label="Default Font Size" className={`px-2 py-0.5 text-xs rounded ${fontSizeClass === 'text-base' ? 'bg-emerald-500 text-slate-950 font-bold' : 'text-slate-300 hover:bg-slate-700'}`}>A</button>
+              <button onClick={() => setFontSizeClass('text-lg')} aria-label="Large Font Size" className={`px-2 py-0.5 text-xs rounded ${fontSizeClass === 'text-lg' ? 'bg-emerald-500 text-slate-950 font-bold' : 'text-slate-300 hover:bg-slate-700'}`}>A+</button>
             </div>
 
             {/* Accessibility Selector */}
             <select
               value={accessibilityProfile}
               onChange={(e) => setAccessibilityProfile(e.target.value as any)}
+              aria-label="Select Accessibility Profile"
               className="bg-slate-800 text-slate-200 border border-slate-700 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-emerald-500"
             >
               <option value="standard">Standard Route</option>
@@ -401,6 +402,7 @@ export default function Home() {
             <select
               value={language}
               onChange={(e) => setLanguage(e.target.value)}
+              aria-label="Select Target Language"
               className="bg-slate-800 text-slate-200 border border-slate-700 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-emerald-500"
             >
               <option value="English">English</option>
@@ -479,6 +481,7 @@ export default function Home() {
                   )}
                   <button
                     onClick={() => setTtsEnabled(!ttsEnabled)}
+                    aria-label={ttsEnabled ? "Mute announcements text to speech" : "Unmute announcements text to speech"}
                     className={`p-1.5 rounded transition ${ttsEnabled ? 'text-emerald-400 bg-emerald-950/45' : 'text-slate-500 hover:text-slate-300'}`}
                   >
                     {ttsEnabled ? <Volume2 className="w-4.5 h-4.5" /> : <VolumeX className="w-4.5 h-4.5" />}
@@ -487,7 +490,7 @@ export default function Home() {
               </div>
 
               {/* Messages list */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              <div className="flex-1 overflow-y-auto p-4 space-y-4" aria-live="polite" aria-atomic="true">
                 {messages.map((msg, index) => (
                   <div key={index} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
                     <div className={`max-w-[85%] rounded-xl px-4 py-3 text-xs leading-relaxed ${
@@ -515,6 +518,7 @@ export default function Home() {
                 <button
                   type="button"
                   onClick={startSpeechRecognition}
+                  aria-label={isListening ? "Stop listening to voice input" : "Start listening to voice input"}
                   className={`p-2.5 rounded-lg border transition ${
                     isListening ? 'bg-red-950 border-red-500 text-red-500 animate-pulse' : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
                   }`}
@@ -525,11 +529,17 @@ export default function Home() {
                   type="text"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
+                  aria-label="Ask FanCompass AI text query input field"
                   placeholder={isListening ? "Listening to voice input..." : "Type seating blocks or gate IDs..."}
                   className="flex-1 bg-slate-900 border border-slate-800 rounded-lg px-4 py-2 text-xs text-slate-200 focus:outline-none focus:border-emerald-500"
                   disabled={sendingQuery}
                 />
-                <button type="submit" disabled={sendingQuery || !query.trim()} className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white p-2.5 rounded-lg transition">
+                <button 
+                  type="submit" 
+                  disabled={sendingQuery || !query.trim()} 
+                  aria-label="Submit query"
+                  className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white p-2.5 rounded-lg transition"
+                >
                   <Send className="w-5 h-5" />
                 </button>
               </form>

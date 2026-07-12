@@ -18,7 +18,7 @@ export const askRateLimiter = rateLimit({
  * Validates the chat request structure and filters potential prompt injections.
  */
 export const validateInput = (req: Request, res: Response, next: NextFunction) => {
-  const { query, language } = req.body;
+  const { query, language, accessibilityProfile } = req.body;
 
   if (!query || typeof query !== 'string') {
     return res.status(400).json({ error: 'Query parameter is required and must be a string' });
@@ -28,9 +28,34 @@ export const validateInput = (req: Request, res: Response, next: NextFunction) =
     return res.status(400).json({ error: 'Query length exceeds maximum limit of 300 characters' });
   }
 
+  // Whitelist check for language parameter to prevent malicious code/header injection
+  if (language && typeof language === 'string') {
+    const allowedLanguages = ['English', 'Spanish', 'French', 'Arabic', 'Hindi', 'Español', 'Français', 'العربية', 'हिन्दी'];
+    if (!allowedLanguages.includes(language)) {
+      return res.status(400).json({ error: 'Invalid language option selected.' });
+    }
+  }
+
+  // Whitelist check for accessibilityProfile
+  if (accessibilityProfile && typeof accessibilityProfile === 'string') {
+    const allowedProfiles = ['standard', 'step_free', 'low_sensory', 'visual_assist'];
+    if (!allowedProfiles.includes(accessibilityProfile)) {
+      return res.status(400).json({ error: 'Invalid accessibility profile selected.' });
+    }
+  }
+
   // Basic sanitization and prompt injection checks
   const lowerQuery = query.toLowerCase();
-  const injectionKeywords = ['ignore previous', 'system prompt', 'you must bypass', 'override rules'];
+  const injectionKeywords = [
+    'ignore previous',
+    'system prompt',
+    'you must bypass',
+    'override rules',
+    'dan mode',
+    'jailbreak',
+    'instruction bypass',
+    'ignore all guidelines'
+  ];
   
   if (injectionKeywords.some(keyword => lowerQuery.includes(keyword))) {
     return res.status(400).json({ error: 'Security alert: Invalid search parameters detected.' });
@@ -47,7 +72,7 @@ export const validateInput = (req: Request, res: Response, next: NextFunction) =
 
 /**
  * Role-based access control middleware for Staff/Volunteer operations dashboard.
- * Supports a mock header token fallback for easy local dev and demo testing.
+ * Supports a configurable header token check (falling back to volunteer-demo-token-123 in dev mode).
  */
 export const requireStaffAuth = async (req: Request, res: Response, next: NextFunction) => {
   const authHeader = req.headers.authorization;
@@ -57,15 +82,16 @@ export const requireStaffAuth = async (req: Request, res: Response, next: NextFu
   }
 
   const token = authHeader.split('Bearer ')[1];
+  const allowedStaffToken = process.env.STAFF_AUTH_TOKEN || 'volunteer-demo-token-123';
 
-  // Quick fallback check for development demo convenience
-  if (token === 'volunteer-demo-token-123') {
+  // Quick fallback check for development/sandbox demo convenience
+  if (token === allowedStaffToken) {
     (req as any).user = { uid: 'demo-staff', role: 'staff' };
     return next();
   }
 
   if (!hasFirebase) {
-    // If Firebase isn't configured, but token isn't the mock token, reject it
+    // If Firebase isn't configured, but token isn't the allowed staff token, reject it
     return res.status(403).json({ error: 'Forbidden. Firebase authentication is unconfigured.' });
   }
 

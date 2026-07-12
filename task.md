@@ -1,0 +1,8 @@
+- [x] Convert `app.js` and `server.js` to `.ts` and clean up `backend/package.json`
+- [x] Create `errorHandler.ts` middleware and register it in `app.ts`
+- [x] Update `security.ts` with dynamic token override and stricter sanitization rules
+- [x] Update `db.ts` to implement safe Firebase initialization and dynamic local caching
+- [x] Upgrade Gemini functions in `gemini.ts` to support stadium policies (Sustainability, Transportation, Security)
+- [x] Implement ARIA labeling and screen reader announcements in `page.tsx`
+- [x] Expand unit test coverage in `RoutingEngine.test.ts` and `api.test.ts`
+- [x] Compile, build, and run the testing suite to verify everything
